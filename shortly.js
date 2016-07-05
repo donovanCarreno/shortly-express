@@ -2,6 +2,7 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
+var session = require('express-session');
 
 
 var db = require('./app/config');
@@ -20,10 +21,29 @@ app.use(partials());
 app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(session({
+  secret: 'keyboard cat',
+  resave: false, 
+  saveUninitialized: false
+}));
+app.use(util.checkUser);
 app.use(express.static(__dirname + '/public'));
 
 
-app.get('/', 
+app.get('/login', function(req, res) {
+  res.render('login');
+});
+
+app.get('/logout', function(req, res) {
+  req.session = null;
+  res.redirect('/');
+});
+
+app.get('/signup', function(req, res) {
+  res.render('signup');
+});
+
+app.get('/', util.requiresLogin,
 function(req, res) {
   res.render('index');
 });
@@ -33,7 +53,7 @@ function(req, res) {
   res.render('index');
 });
 
-app.get('/links', 
+app.get('/links',
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.status(200).send(links.models);
@@ -82,19 +102,19 @@ function(req, res) {
  */
 app.post('/signup', function(req, res) {
   User.forge({username: req.body.username, password: req.body.password}).save().then(function(results) {
+    console.log('saved', results);
     res.location('/');
     res.status(201).send('save user');
   });
 });
 
 app.post('/login', function(req, res) {
-  User.forge({username: req.body.username, password: req.body.password}).fetch({require: true}).then(function(results) {
-    console.log('then');
-    console.log(results);
-    res.location('/');
-    res.status(201).send('save user');
+  User.forge({username: req.body.username, password: req.body.password}).fetch({require: true}).then(function(user) {
+    console.log(user);
+    req.session.username = user.get('username');
+    res.redirect('/');
   }).catch(function(err) {
-    console.log('catch');
+    console.log('catch', err);
     res.location(req.url);
     res.status(200).send();
   });
