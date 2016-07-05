@@ -44,6 +44,8 @@ app.post('/links',
 function(req, res) {
   var uri = req.body.url;
 
+  console.log('calling post');
+
   if (!util.isValidUrl(uri)) {
     console.log('Not a valid url: ', uri);
     return res.sendStatus(404);
@@ -75,8 +77,28 @@ function(req, res) {
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
+/**
+ * Create a User, with username and password if user with that username doesn't exist.
+ */
+app.post('/signup', function(req, res) {
+  User.forge({username: req.body.username, password: req.body.password}).save().then(function(results) {
+    res.location('/');
+    res.status(201).send('save user');
+  });
+});
 
-
+app.post('/login', function(req, res) {
+  User.forge({username: req.body.username, password: req.body.password}).fetch({require: true}).then(function(results) {
+    console.log('then');
+    console.log(results);
+    res.location('/');
+    res.status(201).send('save user');
+  }).catch(function(err) {
+    console.log('catch');
+    res.location(req.url);
+    res.status(200).send();
+  });
+});
 
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
