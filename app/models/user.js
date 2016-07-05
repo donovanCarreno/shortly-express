@@ -2,21 +2,19 @@ var db = require('../config');
 var bcrypt = require('bcrypt-nodejs');
 var Promise = require('bluebird');
 
-
+var hashAsync = Promise.promisify(bcrypt.hash);
 
 var User = db.Model.extend({
   tableName: 'users',
 
-  /**
-   * 1. check if user with name exists
-   */
-  createUser: function(name, pwd) {
-    return User.forge({username: name, password: pwd}).fetch().then(function(results) {
-      console.log(results);
-      return results;
+  initialize: function() {
+    this.on('creating', function(model, attrs, options) {
+      return hashAsync(model.get('password'), null, null)
+        .then(function(hashedPassword) {
+          model.set('password', hashedPassword);
+        });
     });
   }
-
 });
 
 module.exports = User;

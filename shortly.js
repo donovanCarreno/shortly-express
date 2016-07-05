@@ -4,6 +4,7 @@ var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var session = require('express-session');
 
+var bcrypt = require('bcrypt-nodejs');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -35,7 +36,7 @@ app.get('/login', function(req, res) {
 });
 
 app.get('/logout', function(req, res) {
-  req.session = null;
+  req.session.destroy();
   res.redirect('/');
 });
 
@@ -45,6 +46,7 @@ app.get('/signup', function(req, res) {
 
 app.get('/', util.requiresLogin,
 function(req, res) {
+  console.log(req.user);
   res.render('index');
 });
 
@@ -101,23 +103,49 @@ function(req, res) {
  * Create a User, with username and password if user with that username doesn't exist.
  */
 app.post('/signup', function(req, res) {
-  User.forge({username: req.body.username, password: req.body.password}).save().then(function(results) {
-    console.log('saved', results);
-    res.location('/');
-    res.status(201).send('save user');
-  });
+  User.forge({username: req.body.username})
+    .fetch()
+    .then(function(user) {
+      if (user) {
+        res.redirect('/signup');  
+      } else {       
+        Users.create({
+          username: req.body.username,
+          password: req.body.password
+        })
+        .then(function(user) {
+          req.session.username = user.get('username');
+          res.redirect('/');
+        });
+      }
+    })
+    .catch(function(err) {
+      res.status(500).send('Server Error');
+    });
 });
 
 app.post('/login', function(req, res) {
-  User.forge({username: req.body.username, password: req.body.password}).fetch({require: true}).then(function(user) {
-    console.log(user);
-    req.session.username = user.get('username');
-    res.redirect('/');
-  }).catch(function(err) {
-    console.log('catch', err);
-    res.location(req.url);
-    res.status(200).send();
-  });
+  User.forge({username: req.body.username}).fetch()
+    .then(function(user) {
+      if (user) {
+        bcrypt.compare(req.body.password, user.get('password'), function(err, correctPassword) {
+          if (correctPassword) {
+            // User exists, password correct
+            req.session.username = user.get('username');
+            res.redirect('/');
+          } else {
+            // User exists, password incorrect
+            res.redirect('/login');
+          }
+        });
+      } else {
+        // User doesn't exist
+        res.redirect('/login');
+      }
+    })
+    .catch(function(err) {
+      res.status(500).send('Server Error');
+    });
 });
 
 /************************************************************/
