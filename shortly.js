@@ -35,7 +35,7 @@ app.get('/login', function(req, res) {
   res.render('login');
 });
 
-app.get('/logout', function(req, res) {
+app.get('/logout', util.requiresLogin, function(req, res) {
   req.session.destroy();
   res.redirect('/');
 });
@@ -50,19 +50,19 @@ function(req, res) {
   res.render('index');
 });
 
-app.get('/create', 
+app.get('/create', util.requiresLogin,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/links',
+app.get('/links', util.requiresLogin,
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.status(200).send(links.models);
   });
 });
 
-app.post('/links', 
+app.post('/links', util.requiresLogin,
 function(req, res) {
   var uri = req.body.url;
 
